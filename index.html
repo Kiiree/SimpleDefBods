@@ -1,0 +1,91 @@
+<!--js libs-->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script src="https://rawgit.com/gentooboontoo/js-quantities/master/src/quantities.js"></script>
+<!--custom js-->
+<script type="text/javascript">
+var getVal = function(field)
+{
+	var fieldValue = $("input[name="+field+"]").val();
+	return new Qty(fieldValue);
+};
+function gv(myid){
+	return document.getElementById(myid).value;
+}
+function squareI()
+{//area moment of inertia for square beam.
+	var od = getVal("OD");
+	var t = getVal("thickness");
+	var topArea = od.mul(t);
+	var dist = od.div(2).sub(t.div(2));
+	var amoi_top_small = od.mul(t.mul(t.mul(t))).div(12);
+	var amoi_top = dist.mul(dist).mul(topArea).add(amoi_top_small);
+	var sideH = od.sub(t).sub(t);
+	var amoi_side = t.mul(sideH.mul(sideH.mul(sideH))).div(12);
+	var amoi = amoi_side.mul(2).add(amoi_top.mul(2));
+	amoi = amoi.mul(getVal("nb"));
+	return amoi;
+}
+function calculate()
+{
+	var shape = gv("shape");
+	var amoi;
+	if(shape == "square")
+	{
+		amoi = squareI();
+	}
+	var length = getVal("length");
+	var load = getVal("tipLoad");
+	var moment = length.mul(load);
+	var maxy = getVal("OD").div(2);
+	var sigma = moment.mul(maxy).div(amoi);
+	var material = gv("material");
+	var yieldStress,elasticModulus,safetyFactor,maxdeflection;
+	if(material == "al6061-t6")
+	{
+		yieldStress = new Qty("276 MPa");
+		elasticModulus = new Qty("68.9 GPa");
+	}
+	if(material=="None")
+	{
+		safetyFactor = "N/A";
+		maxdeflection = "N/A";
+	}
+	else
+	{
+		safetyFactor = yieldStress.div(sigma);
+		maxdeflection = load.mul(length).mul(length).mul(length).div(3).div(amoi).div(elasticModulus).to("in");
+	}
+	$("#results").html(
+		"Total Area Moment of Inertia: "+amoi.to("in^4")+"<br />"+
+		"Max Bending Stress: "+sigma.to("MPa")+"<br />"+
+		"Max Deflection: "+maxdeflection+"<br />"+
+		"Yield Stress Safety Factor: "+safetyFactor
+		);
+}
+</script>
+<!--sytles-->
+
+<div id="myContent">
+	<h1>Cantilever Beam</h1>
+	<div>
+		Shape: <select id="shape">
+	  		<option value="square">Square Tube</option>
+		</select>
+	</div>
+	<div><input type="text" name="OD" value="0.75 in"> (Outer Dimension) </div>
+	<div><input type="text" name="thickness" value="0.0625 in"> (Thickness) </div>
+	<div><input type="text" name="tipLoad" value="50 lbf"> (Load at Free End) </div>
+	<div><input type="text" name="length" value="8 in"> (Length) </div>
+	<div><input type="text" name="nb" value="2"> (Number of Beams) </div>
+	<div>
+		Material (Optional): <select id="material">
+	  		<option value="None">None</option>
+	  		<option value="al6061-t6">Aluminum 6061-T6</option>
+		</select>
+	</div>
+	<p><button onclick="calculate()">Calculate</button></p>
+	<div id="results">
+
+	</div>
+</div>
